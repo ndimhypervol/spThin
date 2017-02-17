@@ -19,6 +19,14 @@
 #' @param reps The number of times to repete the thinning process. Given the random
 #'   process of removing nearest-neighbors there should be 'rep' number of different
 #'   sets of coordinates.
+#' @param env.data A raster stack of environmental covariates. If entered,
+#'   at every stage where the algorithm decides which point to thin amongst
+#'   a group of candidates that are below the thin.par neighbor distance threshold,
+#'   it chooses randomly one that has a minimal environmental distance between
+#'   all other points. The environmental distance is calculated by measuring the
+#'   Euclidian distance in ordination space of a PCA of the environmental covariates.
+#'   This method ensures a broader representation of environmental space in each
+#'   replicate.
 #' @param locs.thinned.list.return TRUE/FALSE - If true, the `list` of 
 #'   the data.frame of thinned locs resulting from each replication 
 #'   is returned (see Returns below).
@@ -40,6 +48,7 @@
 #'
 thin <- function( loc.data, lat.col="LAT", long.col="LONG", spec.col="SPEC",
                   thin.par, reps,
+                  env.data = NULL,
                   locs.thinned.list.return = FALSE,
                   write.files = TRUE, 
                   max.files = 5, 
@@ -95,7 +104,7 @@ thin <- function( loc.data, lat.col="LAT", long.col="LONG", spec.col="SPEC",
   # Keep track of how much time it takes to run this algorithm
   thin.time <- system.time( 
     locs.thinned <- thin.algorithm( rec.df.orig=locs.long.lat,
-                                    thin.par=thin.par, reps=reps )
+                                    thin.par=thin.par, reps=reps, env.data=env.data )
   )
   
   ## Record in log file elapsed system time for running the script

@@ -18,8 +18,15 @@
 #' 
 
 
-thin.algorithm <- function( rec.df.orig, thin.par, reps ) {
+thin.algorithm <- function( rec.df.orig, thin.par, reps, env.preds ) {
 
+  if (!is.null(env.preds)) {
+    e <- raster::extract(env.preds, rec.df.orig)
+    e <- na.omit(e)
+    e.pca <- prcomp(e, scale.=TRUE)
+    e.xy <- e.pca$x[,1:2]
+  }
+  
   ## Create empty list object to store thinned occurrence datasets
   reduced.rec.dfs <- list()
   
@@ -36,6 +43,9 @@ thin.algorithm <- function( rec.df.orig, thin.par, reps ) {
     ## Set diagonal elements of distance matrix to NAs, as these are all 
     ## 0 in this case.
     diag(DistMat) <- NA
+    
+    DistMat.e <- rdist(e.xy)
+    diag(DistMat.e) <- NA
     
     ## Perform while loop based on two criteria
     ## 1. The minimum distance between to occurences is less than the 
@@ -61,7 +71,17 @@ thin.algorithm <- function( rec.df.orig, thin.par, reps ) {
       ## If there are more than one occurrences meeting the above
       ## conditions, choose one to remove at random.
       if( length( RemoveRec ) > 1 ) {
-        RemoveRec <- sample( RemoveRec, 1 )
+        if (!is.null(env.preds)) {
+          # get subset of env distance matrix for RemoveRec
+          rem.edist <- DistMat.e[RemoveRec, ]
+          # find all instances in env distance matrix of points with minimum env distance
+          rem.edist.min <- which(rem.edist == min(rem.edist, na.rm=TRUE), arr.ind=TRUE)[,1]
+          # find the points with the most instances of minimum env distance
+          rem.inds <- as.numeric(names(which(table(rem.edist.min) == max(table(rem.edist.min)))))
+          # reassign RemoveRec
+          if (length(rem.inds) > 0) RemoveRec <- RemoveRec[rem.inds]  
+        }
+        if (length(RemoveRec) > 1) RemoveRec <- sample( RemoveRec, 1 )
       }
       
       ## Remove a single occurrence that has the most occurrences within 
@@ -70,6 +90,8 @@ thin.algorithm <- function( rec.df.orig, thin.par, reps ) {
       
       ## Remove the occurence from the distance matrix
       DistMat <- DistMat[ -RemoveRec, -RemoveRec ]
+      # remove the occurence from the e-distance matrix
+      DistMat.e <- DistMat.e[ -RemoveRec, -RemoveRec ]
       
       ## Break out of while loop if there is only one record left
       if( length( DistMat ) == 1 ){ break }
